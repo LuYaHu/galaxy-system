@@ -13,9 +13,15 @@ void processInput(GLFWwindow* window);
 
 // triangle vertices.
 float vertices[] = {
-    -0.5f, -0.5f, 0.0f,
+    0.5f, 0.5f, 0.0f,
     0.5f, -0.5f, 0.0f,
-    0.0f, 0.5f, 0.0f
+    -0.5f, -0.5f, 0.0f,
+    -0.5f, 0.5f, 0.0f
+};
+
+unsigned int indices[] = {
+    0, 1, 3, // first triangle
+    1, 2, 3  // second triangle
 };
 
 // vertexShader hardcode in main.cpp.
@@ -118,29 +124,46 @@ int main(int argc, const char *argv[])
     // create VBO and bind buffer to  VBO
     // create VAO and bind VBO to VAO
     unsigned int VBO, VAO;
+    // create EBO (index buffer object)
+    unsigned int EBO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+
     glGenBuffers(1, &VBO);
-    // Bind VBO to GL_ARRAY_BUFFER. Since then, every buffer transfered on
-    // GL_ARRAY_BUFFER will apply to VBO
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // create EBO
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    //use glDrawElements instead to glDrawArrays
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     // Enable vertex attributes. Default disabled.
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // Bind location 0 to Vertex Array.
     glBindVertexArray(0);
+
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // use line mode to draw triangles.
+        // if want to draw triangles with fill mode.
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
         // draw a triangle. and begin index with how many
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        // six point
+        // last attributes is the offset
 
         glfwSwapBuffers(window);
         glfwPollEvents();
