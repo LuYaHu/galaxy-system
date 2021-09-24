@@ -8,6 +8,7 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <math.h>
 using namespace std;
 void processInput(GLFWwindow* window);
 
@@ -27,16 +28,19 @@ unsigned int indices[] = {
 // vertexShader hardcode in main.cpp.
 const char *vertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
+    "out vec4 vertexColor;\n"
     "void main()\n"
     "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "   gl_Position = vec4(aPos, 1.0);\n"
+    "   vertexColor = vec4(0.5, 0.0, 0.0, 1.0);\n" // set up output to dark red
     "}\0";
 // fragmentShader hardcode in main.cpp.
 const char *fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
+    "uniform vec4 ourColor;\n"
     "void main()\n"
     "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+    "   FragColor = ourColor;\n"
     "}\n\0";
 
 int main(int argc, const char *argv[])
@@ -152,18 +156,20 @@ int main(int argc, const char *argv[])
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // use line mode to draw triangles.
-        // if want to draw triangles with fill mode.
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // Change color according to time through uniform buffer
+        float timeValue = glfwGetTime();
+        float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
+        // use glGetUniformLocation to search the location of the ourColor.
+        int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+        // we can search the uniform locations befor using program
+        // but can't change the uniform.
         glUseProgram(shaderProgram);
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+
         glBindVertexArray(VAO);
-        // draw a triangle. and begin index with how many
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // six point
-        // last attributes is the offset
 
         glfwSwapBuffers(window);
         glfwPollEvents();
