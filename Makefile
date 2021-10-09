@@ -6,11 +6,11 @@
 
 CC = g++
 
-GLFLAGS = -lGL -lglfw -ldl -ldl
+GLFLAGS = -I ./include -lGL -lglfw -ldl
 
 OBJ1 = main.cpp
 
-OBJ2 = glad.c
+OBJ2 = ./include/glad.c
 
 OBJ1_EXEC = solarSystem
 

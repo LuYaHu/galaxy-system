@@ -10,9 +10,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <math.h>
-#include "stb_image.h"
+#include <stb_image.h>
 
-#include "./shader.h"
+#include <shader.h>
 
 using namespace std;
 void processInput(GLFWwindow* window);
@@ -32,6 +32,8 @@ unsigned int indices[] = {
     0, 1, 3,
     1, 2, 3,
 };
+
+float mixvalue = 0.2f;
 
 int main(int argc, const char *argv[])
 {
@@ -94,9 +96,9 @@ int main(int argc, const char *argv[])
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // create texture object
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    unsigned int texture1, texture2;
+    glGenTextures(1, &texture1);
+    glBindTexture(GL_TEXTURE_2D, texture1);
 
     // 为当前绑定的纹理对象设置环绕, 过滤方式
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -105,10 +107,13 @@ int main(int argc, const char *argv[])
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    // OpenGL 要求y轴坐标在图片底部
+    // 但图片y轴在顶部 需要加载时翻转y轴
+    stbi_set_flip_vertically_on_load(true);
     // load picture
     int width, height, nrChannels;
     // stbi_load use width, height, nrChannels of image
-    unsigned char *data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
+    unsigned char *data = stbi_load("./resources/container.jpg", &width, &height, &nrChannels, 0);
 
     // GL_TEXTURE_2D 生成与当前绑定的纹理对象在同一目标上的纹理
     // 第二个参数为纹理指定多级渐远纹理的级别
@@ -124,6 +129,29 @@ int main(int argc, const char *argv[])
         std::cout << "Failed to load texture" << std::endl;
     }
     stbi_image_free(data);
+
+    glGenTextures(1, &texture2);
+    glBindTexture(GL_TEXTURE_2D, texture2);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    data = stbi_load("./resources/awesomeface.png", &width, &height, &nrChannels, 0);
+
+    if(data)
+    {
+        // png 图片使用RGBA
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
     // location attributes
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -133,6 +161,11 @@ int main(int argc, const char *argv[])
     // texture attributes
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
+
+    ourShader.use();
+    // 通过glUniform1i设置每个采样器方式告诉OpenGL每个着色器采样器属于哪个纹理单元
+    glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0); // 手动设置
+    ourShader.setInt("texture2", 1);                                // 或者使用着色器类
 
     // Enable vertex attributes. Default disabled.
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -145,9 +178,13 @@ int main(int argc, const char *argv[])
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindTexture(GL_TEXTURE_2D, texture);
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         ourShader.use();
+        ourShader.setFloat("change_view", mixvalue);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -169,4 +206,16 @@ void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    {
+        mixvalue += 0.01f;
+        if(mixvalue >= 1.0f)
+            mixvalue = 1.0f;
+    }
+    else if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    {
+        mixvalue -= 0.01f;
+        if(mixvalue <= 0.0f)
+            mixvalue = 0.0f;
+    }
 }
