@@ -18,19 +18,24 @@ function main() {
 
   const vsSource = `
     attribute vec4 aVertexPosition;
+    attribute vec4 aVertexColor;
 
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
+    varying lowp vec4 vColor;
     void main() {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+      vColor = aVertexColor;
     }
   `;
 
   // Fragment shader program
   const fsSource = `
+    varying lowp vec4 vColor;
+
     void main() {
-      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      gl_FragColor = vColor;
     }
   `;
 
@@ -42,6 +47,7 @@ function main() {
     program: shaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+      vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(
@@ -57,15 +63,45 @@ function main() {
 // 创建对象
 function initBuffers(gl) {
   const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-  // var vertices = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, -1.0];
   const positions = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, -1.0];
+  gl.bindBuffer(WebGL2RenderingContext.ARRAY_BUFFER, positionBuffer);
 
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+  gl.bufferData(
+    WebGL2RenderingContext.ARRAY_BUFFER,
+    new Float32Array(positions),
+    WebGL2RenderingContext.STATIC_DRAW
+  );
+
+  const colorBuffer = gl.createBuffer();
+  const colors = [
+    1.0,
+    1.0,
+    1.0,
+    1.0, // 白
+    1.0,
+    0.0,
+    0.0,
+    1.0, // 红
+    0.0,
+    1.0,
+    0.0,
+    1.0, // 绿
+    0.0,
+    0.0,
+    1.0,
+    1.0, // 蓝
+  ];
+  gl.bindBuffer(WebGL2RenderingContext.ARRAY_BUFFER, colorBuffer);
+
+  gl.bufferData(
+    WebGL2RenderingContext.ARRAY_BUFFER,
+    new Float32Array(colors),
+    WebGL2RenderingContext.STATIC_DRAW
+  );
 
   return {
     position: positionBuffer,
+    color: colorBuffer,
   };
 }
 // 绘制场景
@@ -125,6 +161,24 @@ function drawScene(gl, programInfo, buffers) {
       offset
     );
     gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+  }
+  {
+    const numComponents = 4; // pull out 3 values per iteration
+    const type = gl.FLOAT; // the data in the buffer is 32 bits float data
+    const normalize = false; // don't normalize
+    const stride = 0; // how many bytes to get from one set of values to the next
+    // 0 = use type and numComponents above
+    const offset = 0; // how many bytes inside the buffer to start from
+    gl.bindBuffer(WebGL2RenderingContext.ARRAY_BUFFER, buffers.color);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexColor,
+      numComponents,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
   }
 
   // Tell WebGL to use our program when drawing
