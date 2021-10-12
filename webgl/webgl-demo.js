@@ -1,3 +1,5 @@
+// 创建变量跟踪正方形的当前旋转
+var squareRotation = 0.0;
 main();
 
 //
@@ -57,8 +59,25 @@ function main() {
       modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
     },
   };
+  // Here's where we call te routine that builds all
+  // objects we'll be drawing.
   const buffers = initBuffers(gl);
-  drawScene(gl, programInfo, buffers);
+  var then = 0;
+
+  // Draw the scene repeatedly
+  function render(now) {
+    now *= 0.001; // convert to sceonds
+    const deltaTime = now - then;
+    then = now;
+
+    drawScene(gl, programInfo, buffers, deltaTime);
+
+    requestAnimationFrame(render);
+    // requestAnimationFrame 要求浏览器再每一帧上调用函数"render"
+    // 自页面加载以来经过的时间 (以毫秒为单位)
+    // 转换为秒, 从中减去以计算deltaTime自渲染最后一帧以来的秒数
+  }
+  requestAnimationFrame(render);
 }
 // 创建对象
 function initBuffers(gl) {
@@ -105,7 +124,7 @@ function initBuffers(gl) {
   };
 }
 // 绘制场景
-function drawScene(gl, programInfo, buffers) {
+function drawScene(gl, programInfo, buffers, deltaTime) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   gl.clearDepth(1.0); // Clear everything
   gl.enable(gl.DEPTH_TEST); // Enable depth testing
@@ -141,6 +160,13 @@ function drawScene(gl, programInfo, buffers) {
     modelViewMatrix, // matrix to translate
     [-0.0, 0.0, -6.0] // amount to translate
   );
+  mat4.rotate(
+    modelViewMatrix, // destination matrix
+    modelViewMatrix, // matrix to translate
+    squareRotation, // amount to translate
+    [0, 0, 1] // axis to rotate around
+  );
+  // 将modelViewMatrix的当前值squareRotation绕Z轴旋转
 
   // Tell WebGL how to pull out the positions from the position
   // buffer into the vertexPosition attribute.
@@ -203,6 +229,10 @@ function drawScene(gl, programInfo, buffers) {
     const vertexCount = 4;
     gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
   }
+
+  // Update the rotation for the next draw
+
+  squareRotation += deltaTime;
 }
 //
 // 初始化着色器程序, 让WebGL知道如何绘制我们的数据
