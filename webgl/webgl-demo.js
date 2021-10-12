@@ -1,5 +1,5 @@
 // 创建变量跟踪正方形的当前旋转
-var squareRotation = 0.0;
+var cubeRotation = 0.0;
 main();
 
 //
@@ -82,45 +82,90 @@ function main() {
 // 创建对象
 function initBuffers(gl) {
   const positionBuffer = gl.createBuffer();
-  const positions = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, -1.0];
-  gl.bindBuffer(WebGL2RenderingContext.ARRAY_BUFFER, positionBuffer);
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  var vertices = [
+    // Front face
+    -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
 
-  gl.bufferData(
-    WebGL2RenderingContext.ARRAY_BUFFER,
-    new Float32Array(positions),
-    WebGL2RenderingContext.STATIC_DRAW
-  );
+    // Back face
+    -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0,
 
-  const colorBuffer = gl.createBuffer();
-  const colors = [
-    1.0,
-    1.0,
-    1.0,
-    1.0, // 白
-    1.0,
-    0.0,
-    0.0,
-    1.0, // 红
-    0.0,
-    1.0,
-    0.0,
-    1.0, // 绿
-    0.0,
-    0.0,
-    1.0,
-    1.0, // 蓝
+    // Top face
+    -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0,
+
+    // Bottom face
+    -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0,
+
+    // Right face
+    1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0,
+
+    // Left face
+    -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0,
   ];
-  gl.bindBuffer(WebGL2RenderingContext.ARRAY_BUFFER, colorBuffer);
+
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+  // face color
+  const colors = [
+    [1.0, 1.0, 1.0, 1.0], // Front face: white
+    [1.0, 0.0, 0.0, 1.0], // Back face: red
+    [0.0, 1.0, 0.0, 1.0], // Top face: green
+    [0.0, 0.0, 1.0, 1.0], // Bottom face: blue
+    [1.0, 1.0, 0.0, 1.0], // Right face: yellow
+    [1.0, 0.0, 1.0, 1.0], // Left face: purple
+  ];
+
+  // vertices color
+  var generatedColors = [];
+
+  for (j = 0; j < colors.length; j++) {
+    const c = colors[j];
+    for (var i = 0; i < c.length; i++) {
+      generatedColors = generatedColors.concat(c);
+    }
+  }
+  const cubeVerticesColorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
 
   gl.bufferData(
-    WebGL2RenderingContext.ARRAY_BUFFER,
-    new Float32Array(colors),
-    WebGL2RenderingContext.STATIC_DRAW
+    gl.ARRAY_BUFFER,
+    new Float32Array(generatedColors),
+    gl.STATIC_DRAW
   );
 
+  // EBO
+  var cubeVerticesIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVerticesIndexBuffer);
+
+  // This array defines each face as two triangles, using the
+  // indices into the vertex array to specify each triangle's
+  // position.
+
+  var cubeVertexIndices = [
+    //front
+    0, 1, 2, 0, 2, 3,
+    //back
+    4, 5, 6, 4, 6, 7,
+    //top
+    8, 9, 10, 8, 10, 11,
+    // bottom
+    12, 13, 14, 12, 14, 15,
+    //right
+    16, 17, 18, 16, 18, 19,
+    //left
+    20, 21, 22, 20, 22, 23,
+  ];
+
+  // Now send the element array to GL
+  gl.bufferData(
+    gl.ELEMENT_ARRAY_BUFFER,
+    new Uint16Array(cubeVertexIndices),
+    gl.STATIC_DRAW
+  );
   return {
     position: positionBuffer,
-    color: colorBuffer,
+    color: cubeVerticesColorBuffer,
+    indices: cubeVerticesIndexBuffer,
   };
 }
 // 绘制场景
@@ -163,15 +208,21 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   mat4.rotate(
     modelViewMatrix, // destination matrix
     modelViewMatrix, // matrix to translate
-    squareRotation, // amount to translate
+    cubeRotation, // amount to translate
     [0, 0, 1] // axis to rotate around
   );
-  // 将modelViewMatrix的当前值squareRotation绕Z轴旋转
+  // 将modelViewMatrix的当前值cubeRotation绕Z轴旋转
+  mat4.rotate(
+    modelViewMatrix, // destination matrix
+    modelViewMatrix, // matrix to translate
+    cubeRotation * 0.7, // amount to translate
+    [0, 1, 0] // axis to rotate around
+  );
 
   // Tell WebGL how to pull out the positions from the position
   // buffer into the vertexPosition attribute.
   {
-    const numComponents = 2; // pull out 3 values per iteration
+    const numComponents = 3; // pull out 3 values per iteration
     const type = gl.FLOAT; // the data in the buffer is 32 bits float data
     const normalize = false; // don't normalize
     const stride = 0; // how many bytes to get from one set of values to the next
@@ -207,6 +258,9 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
     gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
   }
 
+  // Tell WebGL which indices to use to index the vertices
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+
   // Tell WebGL to use our program when drawing
 
   gl.useProgram(programInfo.program);
@@ -225,14 +279,15 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   );
 
   {
+    const vertexCount = 36;
+    const type = gl.UNSIGNED_SHORT;
     const offset = 0;
-    const vertexCount = 4;
-    gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+    gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
   }
 
   // Update the rotation for the next draw
 
-  squareRotation += deltaTime;
+  cubeRotation += deltaTime;
 }
 //
 // 初始化着色器程序, 让WebGL知道如何绘制我们的数据
