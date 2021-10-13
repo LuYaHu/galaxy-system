@@ -6,21 +6,21 @@
 
 CC = g++
 
-GLFLAGS = -I ./include -lGL -lglfw -ldl
+GLFLAGS = -I include -lGL -lglfw -ldl
 
-OBJ1 = main.cpp
+OBJ1 = src/main.cpp
 
-OBJ2 = ./include/glad.c
+OBJ2 = include/glad.c
 
-OBJ1_EXEC = solarSystem
+OBJ1_EXEC = build/release/solarSystem
 
 all:
 	$(CC) $(OBJ1) $(OBJ2) -o $(OBJ1_EXEC) $(GLFLAGS)
-	./solarSystem
+	build/release/solarSystem
 
 build:
 	$(CC) $(OBJ1) $(OBJ2) -o $(OBJ1_EXEC) $(GLFLAGS)
 
 clean:
-	rm -rf solarSystem
+	rm -rf build/release/solarSystem
 

@@ -75,7 +75,7 @@ int main(int argc, const char *argv[])
     void framebuffer_size_callback(GLFWwindow* window, int width, int height);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    Shader ourShader("./shader.vs", "./shader.fs");
+    Shader ourShader("src/shader.vs", "src/shader.fs");
 
     // create VBO and bind buffer to  VBO
     // create VAO and bind VBO to VAO
@@ -113,7 +113,7 @@ int main(int argc, const char *argv[])
     // load picture
     int width, height, nrChannels;
     // stbi_load use width, height, nrChannels of image
-    unsigned char *data = stbi_load("./resources/container.jpg", &width, &height, &nrChannels, 0);
+    unsigned char *data = stbi_load("resources/container.jpg", &width, &height, &nrChannels, 0);
 
     // GL_TEXTURE_2D 生成与当前绑定的纹理对象在同一目标上的纹理
     // 第二个参数为纹理指定多级渐远纹理的级别
@@ -138,7 +138,7 @@ int main(int argc, const char *argv[])
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    data = stbi_load("./resources/awesomeface.png", &width, &height, &nrChannels, 0);
+    data = stbi_load("resources/awesomeface.png", &width, &height, &nrChannels, 0);
 
     if(data)
     {
