@@ -8,7 +8,8 @@ main();
 function main() {
   const canvas = document.querySelector("#glcanvas");
   // 初始化WebGL上下文
-  const gl = canvas.getContext("webgl");
+  // 创建一个WebGL2RenderingContext
+  const gl = canvas.getContext("webgl2");
 
   // 确认WebGL支持性
   if (!gl) {
@@ -16,16 +17,23 @@ function main() {
     return;
   }
 
+  // change webgl to webgl2
+  // #version 300 es 必须位于着色器代码的第一行. 前面不允许有任何注释或空行
+  // 使用WebGL2的着色器语法GLSL ES 3.000 如果没有则是默认为GLSL ES 1.00
+  //
   // Vertex shader program
 
-  const vsSource = `
-    attribute vec4 aVertexPosition;
-    attribute vec2 aTextureCoord;
+  const vsSource = `#version 300 es
+
+    // an attribute is an input (in) to a vertex shader.
+    // It will receive data from a buffer
+    in vec4 aVertexPosition;
+    in vec2 aTextureCoord;
 
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
-    varying highp vec2 vTextureCoord;
+    out highp vec2 vTextureCoord;
 
     void main() {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
@@ -34,13 +42,22 @@ function main() {
   `;
 
   // Fragment shader program
-  const fsSource = `
-    varying highp vec2 vTextureCoord;
+  const fsSource = `#version 300 es
+
+    // fragment shader don't have a default precision so we need
+    // to pick one. highp is a good default. It means "hight precision"
+
+    precision highp float;
+
+    in highp vec2 vTextureCoord;
+
+    // we need to declare an output for the fragment shader
+    out vec4 outColor;
 
     uniform sampler2D uSampler;
 
     void main() {
-      gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+      outColor = texture(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
     }
   `;
 
@@ -91,6 +108,10 @@ function main() {
 }
 // 创建对象
 function initBuffers(gl) {
+  // 顶点数组对象: 告诉属性如何从缓冲区中取出数据
+  var vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   var vertices = [
@@ -168,11 +189,13 @@ function initBuffers(gl) {
     gl.STATIC_DRAW
   );
 
+  gl.bindVertexArray(null);
   return {
     position: positionBuffer,
     // color: cubeVerticesColorBuffer,
     indices: cubeVerticesIndexBuffer,
     textureCoord: cubeVerticesTextureCoordBuffer,
+    vao: vao,
   };
 }
 
@@ -235,27 +258,20 @@ function initTextures(gl, url) {
       srcType,
       image
     );
-    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-      // Yes, it's a power of 2. Generate mips.
-      // 生成多级渐进纹理
-      gl.generateMipmap(gl.TEXTURE_2D);
-    } else {
-      // No, it's not a power of 2. Turn of mips and set
-      // wrapping to clamp to edge
-      // 放大与缩小时过滤方式
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
+    // No, it's not a power of 2. Turn of mips and set
+    // wrapping to clamp to edge
+    // 放大与缩小时过滤方式
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    // 生成多级渐进纹理
+    gl.generateMipmap(gl.TEXTURE_2D);
   };
   image.src = url;
   return texture;
 }
 
-function isPowerOf2(value) {
-  return (value & (value - 1)) == 0;
-}
 // 绘制场景
 function drawScene(gl, programInfo, buffers, texture, deltaTime) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
@@ -316,7 +332,7 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
     const stride = 0; // how many bytes to get from one set of values to the next
     // 0 = use type and numComponents above
     const offset = 0; // how many bytes inside the buffer to start from
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position); // ??? 暂时不知道怎么使用VAO控制
     gl.vertexAttribPointer(
       programInfo.attribLocations.vertexPosition,
       numComponents,
@@ -333,7 +349,7 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
     const normalize = false;
     const stride = 0;
     const offset = 0;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord); // 暂时不知道怎么使用VAO控制
     gl.vertexAttribPointer(
       programInfo.attribLocations.textureCoord,
       numComponents,
@@ -347,6 +363,11 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
 
   // Tell WebGL which indices to use to index the vertices
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+
+  // 让画布大小匹配显示区域的大小
+  webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+  // 将裁剪空间的-1~+1映射到x轴的0~gl.canvas.width和y轴0~gl.canvas.height
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
   // Tell WebGL to use our program when drawing
 
