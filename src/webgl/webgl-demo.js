@@ -27,17 +27,17 @@ function main() {
 
     // an attribute is an input (in) to a vertex shader.
     // It will receive data from a buffer
-    in vec4 aVertexPosition;
-    in vec2 aTextureCoord;
+    in vec4 a_VertexPosition;
+    in vec2 a_TextureCoord;
 
-    uniform mat4 uModelViewMatrix;
-    uniform mat4 uProjectionMatrix;
+    uniform mat4 u_ModelViewMatrix;
+    uniform mat4 u_ProjectionMatrix;
 
-    out highp vec2 vTextureCoord;
+    out highp vec2 v_TextureCoord;
 
     void main() {
-      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-      vTextureCoord = aTextureCoord;
+      gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * a_VertexPosition;
+      v_TextureCoord = a_TextureCoord;
     }
   `;
 
@@ -49,15 +49,24 @@ function main() {
 
     precision highp float;
 
-    in highp vec2 vTextureCoord;
+    in highp vec2 v_TextureCoord;
 
     // we need to declare an output for the fragment shader
     out vec4 outColor;
 
-    uniform sampler2D uSampler;
+    uniform sampler2D u_Sampler;
 
     void main() {
-      outColor = texture(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+      // outColor = texture(u_Sampler, vec2(v_TextureCoord.s, v_TextureCoord.t));
+
+      // 模糊处理 平均左右两边纹理中的像素值
+      vec2 onePixel = vec2(1) / vec2(textureSize(u_Sampler, 0));
+
+      // average the left, middle, right pixels.
+      outColor = (
+        texture(u_Sampler, v_TextureCoord) +
+        texture(u_Sampler, v_TextureCoord + vec2( onePixel.x, 0.0)) +
+        texture(u_Sampler, v_TextureCoord + vec2( -onePixel.x, 0.0))) / 3.0;
     }
   `;
 
@@ -68,22 +77,25 @@ function main() {
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
-      // vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
-      textureCoord: gl.getAttribLocation(shaderProgram, "aTextureCoord"),
+      vertexPosition: gl.getAttribLocation(shaderProgram, "a_VertexPosition"),
+      // vertexColor: gl.getAttribLocation(shaderProgram, "a_VertexColor"),
+      textureCoord: gl.getAttribLocation(shaderProgram, "a_TextureCoord"),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(
         shaderProgram,
-        "uProjectionMatrix"
+        "u_ProjectionMatrix"
       ),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
-      uSampler: gl.getUniformLocation(shaderProgram, "uSampler"),
+      modelViewMatrix: gl.getUniformLocation(
+        shaderProgram,
+        "u_ModelViewMatrix"
+      ),
+      uSampler: gl.getUniformLocation(shaderProgram, "u_Sampler"),
     },
   };
   // Here's where we call te routine that builds all
   // objects we'll be drawing.
-  const buffers = initBuffers(gl);
+  const buffers = initBuffers(gl, programInfo);
 
   const texture = initTextures(gl, "http://localhost:8080/cubeTexture.png");
   // 需要使用一个简单的web服务来使得WebGL可以加载本地图片
@@ -107,7 +119,7 @@ function main() {
   requestAnimationFrame(render);
 }
 // 创建对象
-function initBuffers(gl) {
+function initBuffers(gl, programInfo) {
   // 顶点数组对象: 告诉属性如何从缓冲区中取出数据
   var vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
@@ -135,6 +147,25 @@ function initBuffers(gl) {
   ];
 
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  // Tell WebGL how to pull out the positions from the position
+  // buffer into the vertexPosition attribute.
+  {
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+    const numComponents = 3; // pull out 3 values per iteration
+    const type = gl.FLOAT; // the data in the buffer is 32 bits float data
+    const normalize = false; // don't normalize
+    const stride = 0; // how many bytes to get from one set of values to the next
+    // 0 = use type and numComponents above
+    const offset = 0; // how many bytes inside the buffer to start from
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexPosition,
+      numComponents,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+  }
 
   var cubeVerticesTextureCoordBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesTextureCoordBuffer);
@@ -158,6 +189,23 @@ function initBuffers(gl) {
     new Float32Array(textureCoordinates),
     gl.STATIC_DRAW
   );
+
+  {
+    const numComponents = 2;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.textureCoord,
+      numComponents,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+    gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord);
+  }
 
   // EBO
   var cubeVerticesIndexBuffer = gl.createBuffer();
@@ -238,16 +286,6 @@ function initTextures(gl, url) {
   const image = new Image();
   // 允许跨域访问
   image.crossOrigin = "anonymous";
-  //image.onload = function () {
-  //  gl.bindTexture(gl.TEXTURE_2D, texture);
-  //  gl.texImage2D(
-  //    gl.TEXTURE_2D,
-  //    level,
-  //    internalFormat,
-  //    srcFormat,
-  //    srcType,
-  //    image
-  //  );
   image.onload = function () {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(
@@ -323,44 +361,6 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
     [0, 1, 0] // axis to rotate around
   );
 
-  // Tell WebGL how to pull out the positions from the position
-  // buffer into the vertexPosition attribute.
-  {
-    const numComponents = 3; // pull out 3 values per iteration
-    const type = gl.FLOAT; // the data in the buffer is 32 bits float data
-    const normalize = false; // don't normalize
-    const stride = 0; // how many bytes to get from one set of values to the next
-    // 0 = use type and numComponents above
-    const offset = 0; // how many bytes inside the buffer to start from
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position); // ??? 暂时不知道怎么使用VAO控制
-    gl.vertexAttribPointer(
-      programInfo.attribLocations.vertexPosition,
-      numComponents,
-      type,
-      normalize,
-      stride,
-      offset
-    );
-    gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
-  }
-  {
-    const numComponents = 2;
-    const type = gl.FLOAT;
-    const normalize = false;
-    const stride = 0;
-    const offset = 0;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord); // 暂时不知道怎么使用VAO控制
-    gl.vertexAttribPointer(
-      programInfo.attribLocations.textureCoord,
-      numComponents,
-      type,
-      normalize,
-      stride,
-      offset
-    );
-    gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord);
-  }
-
   // Tell WebGL which indices to use to index the vertices
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
 
@@ -372,6 +372,8 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
   // Tell WebGL to use our program when drawing
 
   gl.useProgram(programInfo.program);
+
+  gl.bindVertexArray(buffers.vao);
 
   // Set the shader uniforms
 
