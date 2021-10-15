@@ -1,5 +1,111 @@
 // 创建变量跟踪正方形的当前旋转
 var cubeRotation = 0.0;
+// Define several convolution kernels
+var initialSelection = "edgeDetect2";
+var kernel = initialSelection;
+// prettier-ignore
+var kernels = {
+    normal: [
+      0, 0, 0,
+      0, 1, 0,
+      0, 0, 0,
+    ],
+    gaussianBlur: [
+      0.045, 0.122, 0.045,
+      0.122, 0.332, 0.122,
+      0.045, 0.122, 0.045,
+    ],
+    gaussianBlur2: [
+      1, 2, 1,
+      2, 4, 2,
+      1, 2, 1,
+    ],
+    gaussianBlur3: [
+      0, 1, 0,
+      1, 1, 1,
+      0, 1, 0,
+    ],
+    unsharpen: [
+      -1, -1, -1,
+      -1,  9, -1,
+      -1, -1, -1,
+    ],
+    sharpness: [
+       0, -1,  0,
+      -1,  5, -1,
+       0, -1,  0,
+    ],
+    sharpen: [
+       -1, -1, -1,
+       -1, 16, -1,
+       -1, -1, -1,
+    ],
+    edgeDetect: [
+       -0.125, -0.125, -0.125,
+       -0.125,  1,     -0.125,
+       -0.125, -0.125, -0.125,
+    ],
+    edgeDetect2: [
+       -1, -1, -1,
+       -1,  8, -1,
+       -1, -1, -1,
+    ],
+    edgeDetect3: [
+       -5, 0, 0,
+        0, 0, 0,
+        0, 0, 5,
+    ],
+    edgeDetect4: [
+       -1, -1, -1,
+        0,  0,  0,
+        1,  1,  1,
+    ],
+    edgeDetect5: [
+       -1, -1, -1,
+        2,  2,  2,
+       -1, -1, -1,
+    ],
+    edgeDetect6: [
+       -5, -5, -5,
+       -5, 39, -5,
+       -5, -5, -5,
+    ],
+    sobelHorizontal: [
+        1,  2,  1,
+        0,  0,  0,
+       -1, -2, -1,
+    ],
+    sobelVertical: [
+        1,  0, -1,
+        2,  0, -2,
+        1,  0, -1,
+    ],
+    previtHorizontal: [
+        1,  1,  1,
+        0,  0,  0,
+       -1, -1, -1,
+    ],
+    previtVertical: [
+        1,  0, -1,
+        1,  0, -1,
+        1,  0, -1,
+    ],
+    boxBlur: [
+        0.111, 0.111, 0.111,
+        0.111, 0.111, 0.111,
+        0.111, 0.111, 0.111,
+    ],
+    triangleBlur: [
+        0.0625, 0.125, 0.0625,
+        0.125,  0.25,  0.125,
+        0.0625, 0.125, 0.0625,
+    ],
+    emboss: [
+       -2, -1,  0,
+       -1,  1,  1,
+        0,  1,  2,
+    ],
+  };
 main();
 
 //
@@ -54,19 +160,31 @@ function main() {
     // we need to declare an output for the fragment shader
     out vec4 outColor;
 
-    uniform sampler2D u_Sampler;
+    uniform sampler2D u_Image;
+
+    // the convolution kernel data
+    // 卷积操作
+    uniform float u_kernel[9];
+    uniform float u_kernelWeight;
 
     void main() {
-      // outColor = texture(u_Sampler, vec2(v_TextureCoord.s, v_TextureCoord.t));
+      // outColor = texture(u_Image, vec2(v_TextureCoord.s, v_TextureCoord.t));
 
       // 模糊处理 平均左右两边纹理中的像素值
-      vec2 onePixel = vec2(1) / vec2(textureSize(u_Sampler, 0));
+      vec2 onePixel = vec2(1) / vec2(textureSize(u_Image, 0));
 
-      // average the left, middle, right pixels.
-      outColor = (
-        texture(u_Sampler, v_TextureCoord) +
-        texture(u_Sampler, v_TextureCoord + vec2( onePixel.x, 0.0)) +
-        texture(u_Sampler, v_TextureCoord + vec2( -onePixel.x, 0.0))) / 3.0;
+      //  卷积核只是一个3x3矩阵，其中矩阵中的每个条目代表将要渲染像素周围的8个像素乘的数量。
+      vec4 colorSum =
+        texture(u_Image, v_TextureCoord + onePixel * vec2(-1, -1)) * u_kernel[0] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 0, -1)) * u_kernel[1] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 1, -1)) * u_kernel[2] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2(-1,  0)) * u_kernel[3] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 0,  0)) * u_kernel[4] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 1,  0)) * u_kernel[5] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2(-1,  1)) * u_kernel[6] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 0,  1)) * u_kernel[7] +
+        texture(u_Image, v_TextureCoord + onePixel * vec2( 1,  1)) * u_kernel[8] ;
+      outColor = vec4((colorSum / u_kernelWeight).rgb, 1);
     }
   `;
 
@@ -74,23 +192,19 @@ function main() {
   // for the vertices and so forth is established.
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
+  // prettier-ignore
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, "a_VertexPosition"),
-      // vertexColor: gl.getAttribLocation(shaderProgram, "a_VertexColor"),
       textureCoord: gl.getAttribLocation(shaderProgram, "a_TextureCoord"),
     },
     uniformLocations: {
-      projectionMatrix: gl.getUniformLocation(
-        shaderProgram,
-        "u_ProjectionMatrix"
-      ),
-      modelViewMatrix: gl.getUniformLocation(
-        shaderProgram,
-        "u_ModelViewMatrix"
-      ),
-      uSampler: gl.getUniformLocation(shaderProgram, "u_Sampler"),
+      projectionMatrix: gl.getUniformLocation(shaderProgram, "u_ProjectionMatrix"),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, "u_ModelViewMatrix"),
+      imageLocation: gl.getUniformLocation(shaderProgram, "u_Image"),
+      kernelLocation: gl.getUniformLocation(shaderProgram, "u_kernel[0]"),
+      kernelWeightLocation: gl.getUniformLocation(shaderProgram, "u_kernelWeight"),
     },
   };
   // Here's where we call te routine that builds all
@@ -100,6 +214,24 @@ function main() {
   const texture = initTextures(gl, "http://localhost:8080/cubeTexture.png");
   // 需要使用一个简单的web服务来使得WebGL可以加载本地图片
   // servez
+  // kernels
+
+  // Setup UI to pick kernels.
+  var ui = document.querySelector("#ui");
+  var select = document.createElement("select");
+  for (var name in kernels) {
+    var option = document.createElement("option");
+    option.value = name;
+    if (name === initialSelection) {
+      option.selected = true;
+    }
+    option.appendChild(document.createTextNode(name));
+    select.appendChild(option);
+  }
+  select.onchange = function () {
+    kernel = this.options[this.selectedIndex].value;
+  };
+  ui.appendChild(select);
 
   var then = 0;
 
@@ -109,7 +241,7 @@ function main() {
     const deltaTime = now - then;
     then = now;
 
-    drawScene(gl, programInfo, buffers, texture, deltaTime);
+    drawScene(gl, programInfo, buffers, texture, kernel, deltaTime);
 
     requestAnimationFrame(render);
     // requestAnimationFrame 要求浏览器再每一帧上调用函数"render"
@@ -310,8 +442,15 @@ function initTextures(gl, url) {
   return texture;
 }
 
+function computeKernelWeight(kernel) {
+  var weight = kernel.reduce(function (prev, curr) {
+    return prev + curr;
+  });
+  return weight <= 0 ? 1 : weight;
+}
+
 // 绘制场景
-function drawScene(gl, programInfo, buffers, texture, deltaTime) {
+function drawScene(gl, programInfo, buffers, texture, kernel, deltaTime) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   gl.clearDepth(1.0); // Clear everything
   gl.enable(gl.DEPTH_TEST); // Enable depth testing
@@ -397,7 +536,13 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
 
   // Tell the shader we bound the texture to texture unit 0
-  gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+  gl.uniform1i(programInfo.uniformLocations.imageLocation, 0);
+  // set the kernel and it's weight
+  gl.uniform1fv(programInfo.uniformLocations.kernelLocation, kernels[kernel]);
+  gl.uniform1f(
+    programInfo.uniformLocations.kernelWeightLocation,
+    computeKernelWeight(kernels[kernel])
+  );
 
   {
     const vertexCount = 36;
