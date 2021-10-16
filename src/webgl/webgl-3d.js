@@ -5,15 +5,21 @@ var vertexShaderSource = `#version 300 es
 in vec4 a_position;
 in vec4 a_color;
 
-// Used to pass in the resolution of the canvas
 uniform mat4 u_matrix;
+uniform float u_fudgeFactor;
 
 // 传递给片段着色器的颜色变量
 out vec4 v_color;
 
 // all shaders have a main function
 void main() {
-  gl_Position = u_matrix * a_position;
+  vec4 position = u_matrix * a_position;
+
+  // 调整除数 因为裁剪空间中的Z值是一个较小的值(-1, 1)
+  float zToDivideBy = 1.0 + position.z * u_fudgeFactor;
+
+  // x , y, z 除以zToDivideBy
+  gl_Position = vec4(position.xyz, zToDivideBy);
 
   v_color = a_color;
 }
@@ -171,6 +177,7 @@ function main() {
 
   // look up uniform locations
   var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+  var fudgeLocation = gl.getUniformLocation(program, "u_fudgeFactor");
 
   // Create a vertex array object (attribute state)
   var vao = gl.createVertexArray();
@@ -229,10 +236,17 @@ function main() {
   var translation = [0, 0, 0];
   var rotation = [0, 0, 0];
   var scale = [1, 1, 1];
+  var fudgeFactor = 1;
 
   drawScene();
 
   // Setup a ui.
+  webglLessonsUI.setupSlider("#fudgeFactor", {
+    slide: updateFudgeFactor,
+    max: 2,
+    step: 0.01,
+    precision: 2,
+  });
   webglLessonsUI.setupSlider("#x", {
     slide: updatePosition(0),
     max: gl.canvas.width,
@@ -274,6 +288,11 @@ function main() {
     step: 0.01,
     precision: 2,
   });
+
+  function updateFudgeFactor(event, ui) {
+    fudgeFactor = ui.value;
+    drawScene();
+  }
 
   function updatePosition(index) {
     return function (event, ui) {
@@ -339,6 +358,8 @@ function main() {
 
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
 
+    // set fudgeFactor
+    gl.uniform1f(fudgeLocation, fudgeFactor);
     // Draw the rectangle.
     var primitiveType = gl.TRIANGLES;
     var offset = 0;
