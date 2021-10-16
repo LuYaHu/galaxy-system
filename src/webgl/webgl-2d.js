@@ -5,24 +5,11 @@ var vertexShaderSource = `#version 300 es
 in vec2 a_position;
 
 // Used to pass in the resolution of the canvas
-uniform vec2 u_resolution;
 uniform mat3 u_matrix;
 
 // all shaders have a main function
 void main() {
-  // 顶点坐标乘以矩阵
-  vec2 position = (u_matrix * vec3(a_position, 1)).xy;
-
-  // convert the position from pixels to 0.0 to 1.0
-  vec2 zeroToOne = position / u_resolution;
-
-  // convert from 0->1 to 0->2
-  vec2 zeroToTwo = zeroToOne * 2.0;
-
-  // convert from 0->2 to -1->+1 (clipspace)
-  vec2 clipSpace = zeroToTwo - 1.0;
-
-  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
 }
 `;
 
@@ -57,6 +44,28 @@ var m3 = {
 
   scaling: function (sx, sy) {
     return [sx, 0, 0, 0, sy, 0, 0, 0, 1];
+  },
+
+  projection: function (width, height) {
+    // 翻转Y轴
+    // prettier-ignore
+    return [
+      2 / width, 0, 0,
+      0, -2 / height, 0,
+      -1, 1, 1,
+    ];
+  },
+
+  translate: function (m, tx, ty) {
+    return m3.multiply(m, m3.translation(tx, ty));
+  },
+
+  rotate: function (m, angleInRadians) {
+    return m3.multiply(m, m3.rotation(angleInRadians));
+  },
+
+  scale: function (m, sx, sy) {
+    return m3.multiply(m, m3.scaling(sx, sy));
   },
 
   multiply: function (a, b) {
@@ -221,10 +230,6 @@ function main() {
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(vao);
 
-    // Pass in the canvas resolution so we can convert from
-    // pixels to clipspace in the shader
-    gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
-
     // Update the position buffer with rectangle positions
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     setGeometry(gl);
@@ -233,29 +238,11 @@ function main() {
     gl.uniform4fv(colorLocation, color);
 
     // calculate matrix
-    var translationMatrix = m3.translation(translation[0], translation[1]);
-    var rotationMatrix = m3.rotation(rotationInRadians);
-    var scaleMatrix = m3.scaling(scale[0], scale[1]);
+    var matrix = m3.projection(gl.canvas.clientWidth, gl.canvas.clientHeight);
+    matrix = m3.translate(matrix, translation[0], translation[1]);
+    matrix = m3.rotate(matrix, rotationInRadians);
+    matrix = m3.scale(matrix, scale[0], scale[1]);
 
-    // matrix init
-    var matrix = m3.identity();
-
-    for (var i = 0; i < 5; ++i) {
-      // multiply matrix
-      matrix = m3.multiply(matrix, translationMatrix);
-      matrix = m3.multiply(matrix, rotationMatrix);
-      matrix = m3.multiply(matrix, scaleMatrix);
-
-      // set matrix
-      gl.uniformMatrix3fv(matrixLocation, false, matrix);
-
-      // draw
-      var primitiveType = gl.TRIANGLES;
-      var offset = 0;
-      var count = 18;
-      gl.drawArrays(primitiveType, offset, count);
-    }
-    // Set matrix
     gl.uniformMatrix3fv(matrixLocation, false, matrix);
 
     // Draw the rectangle.
