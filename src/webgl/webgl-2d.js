@@ -7,11 +7,17 @@ in vec2 a_position;
 // Used to pass in the resolution of the canvas
 uniform vec2 u_resolution;
 
+// 用于传入平移量
+uniform vec2 u_translation;
+
 // all shaders have a main function
 void main() {
 
+  // 加上平移量
+  vec2 position = a_position + u_translation;
+
   // convert the position from pixels to 0.0 to 1.0
-  vec2 zeroToOne = a_position / u_resolution;
+  vec2 zeroToOne = position / u_resolution;
 
   // convert from 0->1 to 0->2
   vec2 zeroToTwo = zeroToOne * 2.0;
@@ -61,6 +67,7 @@ function main() {
     "u_resolution"
   );
   var colorLocation = gl.getUniformLocation(program, "u_color");
+  var translationLocation = gl.getUniformLocation(program, "u_translation");
 
   // Create a buffer
   var positionBuffer = gl.createBuffer();
@@ -138,10 +145,13 @@ function main() {
 
     // Update the position buffer with rectangle positions
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    setGeometry(gl, translation[0], translation[1]);
+    setGeometry(gl);
 
     // Set a random color.
     gl.uniform4fv(colorLocation, color);
+
+    // Set translation
+    gl.uniform2fv(translationLocation, translation);
 
     // Draw the rectangle.
     var primitiveType = gl.TRIANGLES;
@@ -152,37 +162,34 @@ function main() {
 }
 
 // Fill the buffer with the values that define a "F".
-function setGeometry(gl, x, y) {
-  var width = 100;
-  var height = 150;
-  var thickness = 30;
+function setGeometry(gl) {
   gl.bufferData(
     gl.ARRAY_BUFFER,
     // prettier-ignore
     new Float32Array([
-      // 左竖
-      x, y,
-      x + thickness, y,
-      x, y + height,
-      x, y + height,
-      x + thickness, y + height,
-      x + thickness, y,
+        // 左竖
+        0, 0,
+        30, 0,
+        0, 150,
+        0, 150,
+        30, 0,
+        30, 150,
 
-      // 上横
-      x + thickness, y,
-      x + width, y,
-      x + thickness, y + thickness,
-      x + thickness, y + thickness,
-      x + width, y,
-      x + width, y + thickness,
+        // 上横
+        30, 0,
+        100, 0,
+        30, 30,
+        30, 30,
+        100, 0,
+        100, 30,
 
-      // 中横
-      x + thickness, y + thickness * 2,
-      x + width * 2 / 3, y + thickness * 2,
-      x + thickness, y + thickness * 3,
-      x + thickness, y + thickness * 3,
-      x + width * 2 / 3, y + thickness * 2,
-      x + width * 2 / 3, y + thickness * 3
+        // 中横
+        30, 60,
+        67, 60,
+        30, 90,
+        30, 90,
+        67, 60,
+        67, 90
     ]),
     gl.STATIC_DRAW
   );
