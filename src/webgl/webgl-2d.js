@@ -7,17 +7,17 @@ in vec2 a_position;
 // Used to pass in the resolution of the canvas
 uniform vec2 u_resolution;
 
-// 用于传入平移量
 uniform vec2 u_translation;
-
-// 用于传入平移量
 uniform vec2 u_rotation;
+uniform vec2 u_scale;
 
 // all shaders have a main function
 void main() {
+  // 缩放
+  vec2 scaledPosition = a_position * u_scale;
    // 旋转位置
-  vec2 rotatedPosition = vec2(a_position.x * u_rotation.y + a_position.y * u_rotation.x,
-                              a_position.y * u_rotation.y - a_position.x * u_rotation.x);
+  vec2 rotatedPosition = vec2(scaledPosition.x * u_rotation.y + scaledPosition.y * u_rotation.x,
+                              scaledPosition.y * u_rotation.y - scaledPosition.x * u_rotation.x);
 
   // 加上平移量
   vec2 position = rotatedPosition + u_translation;
@@ -75,6 +75,7 @@ function main() {
   var colorLocation = gl.getUniformLocation(program, "u_color");
   var translationLocation = gl.getUniformLocation(program, "u_translation");
   var rotationLocation = gl.getUniformLocation(program, "u_rotation");
+  var scaleLocation = gl.getUniformLocation(program, "u_scale");
 
   // Create a buffer
   var positionBuffer = gl.createBuffer();
@@ -108,6 +109,7 @@ function main() {
 
   var translation = [100, 150];
   var rotation = [0, 1];
+  var scale = [1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
 
   drawScene();
@@ -124,6 +126,23 @@ function main() {
 
   webglLessonsUI.setupSlider("#angle", { slide: updateAngle, max: 360 });
 
+  webglLessonsUI.setupSlider("#scaleX", {
+    value: scale[0],
+    slide: updateScale(0),
+    min: -5,
+    max: 5,
+    step: 0.01,
+    precision: 2,
+  });
+  webglLessonsUI.setupSlider("#scaleY", {
+    value: scale[1],
+    slide: updateScale(1),
+    min: -5,
+    max: 5,
+    step: 0.01,
+    precision: 2,
+  });
+
   function updatePosition(index) {
     return function (event, ui) {
       translation[index] = ui.value;
@@ -137,6 +156,13 @@ function main() {
     rotation[0] = Math.sin(angleInRadians);
     rotation[1] = Math.cos(angleInRadians);
     drawScene();
+  }
+
+  function updateScale(index) {
+    return function (event, ui) {
+      scale[index] = ui.value;
+      drawScene();
+    };
   }
 
   function drawScene() {
@@ -171,6 +197,9 @@ function main() {
 
     // Set rotation
     gl.uniform2fv(rotationLocation, rotation);
+
+    // Set scale
+    gl.uniform2fv(scaleLocation, scale);
 
     // Draw the rectangle.
     var primitiveType = gl.TRIANGLES;
