@@ -11,7 +11,7 @@
     <script src="resources/gl-matrix-min.js" defer></script>
     <script src="resources/webgl-utils.js"></script>
     <script src="resources/webgl-lessons-ui.js"></script>
-    <script src="webgl-2d.js" defer></script>
+    <script src="webgl-3d.js" defer></script>
     <script src="resources/twgl-full.min.js"></script>
     <script src="resources/m4.js"></script>
     <script src="resources/texture-utils.js"></script>
@@ -23,15 +23,19 @@
   </head>
 
   <body>
-    <div class="description">WebGL2 二维矩阵</div>
+    <div class="description">WebGL2 三维正射投影</div>
     <canvas id="glcanvas"></canvas>
     <div id="uiContainer">
       <div id="ui">
         <div id="x"></div>
         <div id="y"></div>
-        <div id="angle"></div>
+        <div id="z"></div>
+        <div id="angleX"></div>
+        <div id="angleY"></div>
+        <div id="angleZ"></div>
         <div id="scaleX"></div>
         <div id="scaleY"></div>
+        <div id="scaleZ"></div>
       </div>
     </div>
   </body>
