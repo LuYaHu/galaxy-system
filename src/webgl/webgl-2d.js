@@ -41,6 +41,10 @@ void main() {
 `;
 
 var m3 = {
+  identity: function () {
+    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  },
+
   translation: function (tx, ty) {
     return [1, 0, 0, 0, 1, 0, tx, ty, 1];
   },
@@ -145,7 +149,7 @@ function main() {
     offset
   );
 
-  var translation = [100, 150];
+  var translation = [0, 0];
   var rotationInRadians = 0;
   var scale = [1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
@@ -233,10 +237,24 @@ function main() {
     var rotationMatrix = m3.rotation(rotationInRadians);
     var scaleMatrix = m3.scaling(scale[0], scale[1]);
 
-    // multiply matrix
-    var matrix = m3.multiply(translationMatrix, rotationMatrix);
-    matrix = m3.multiply(matrix, scaleMatrix);
+    // matrix init
+    var matrix = m3.identity();
 
+    for (var i = 0; i < 5; ++i) {
+      // multiply matrix
+      matrix = m3.multiply(matrix, translationMatrix);
+      matrix = m3.multiply(matrix, rotationMatrix);
+      matrix = m3.multiply(matrix, scaleMatrix);
+
+      // set matrix
+      gl.uniformMatrix3fv(matrixLocation, false, matrix);
+
+      // draw
+      var primitiveType = gl.TRIANGLES;
+      var offset = 0;
+      var count = 18;
+      gl.drawArrays(primitiveType, offset, count);
+    }
     // Set matrix
     gl.uniformMatrix3fv(matrixLocation, false, matrix);
 
