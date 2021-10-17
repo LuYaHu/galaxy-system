@@ -3,18 +3,21 @@ var vertexShaderSource = `#version 300 es
 // an attribute is an input (in) to a vertex shader.
 // It will receive data from a buffer
 in vec4 a_position;
-in vec4 a_color;
+// in vec4 a_color;
+in vec3 a_normal;
 
 uniform mat4 u_matrix;
 
 // 传递给片段着色器的颜色变量
-out vec4 v_color;
+// out vec4 v_color;
+// 定义法向量变量传递给片段着色器
+out vec3 v_normal;
 
 // all shaders have a main function
 void main() {
   gl_Position = u_matrix * a_position;
 
-  v_color = a_color;
+  v_normal = a_normal;
 }
 `;
 
@@ -22,13 +25,28 @@ var fragmentShaderSource = `#version 300 es
 
 precision highp float;
 
-in vec4 v_color;
+// in vec4 v_color;
+// 从顶点着色器中传入的法向量值
+in vec3 v_normal;
+
+uniform vec3 u_reverseLightDirection;
+uniform vec4 u_color;
 
 // we need to declare an output for the fragment shader
 out vec4 outColor;
 
 void main() {
-  outColor = v_color;
+    // 因为 v_normal 是一个变化的插值, 所以它不会是一个单位向量.
+    // 归一化使其变成单位向量
+    vec3 normal = normalize(v_normal);
+
+    // 通过取法线与光纤反向的点积计算光
+    float light = dot(normal, u_reverseLightDirection);
+
+    outColor = u_color;
+
+    // 只将颜色部分(不包括 alpha) 乘以光
+    outColor.rgb *= light;
 }
 `;
 
@@ -40,30 +58,11 @@ function degToRad(d) {
   return (d * Math.PI) / 180;
 }
 
-function cross(a, b) {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ];
-}
-function subtractVectors(a, b) {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-function normalize(v) {
-  var length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-  // 确定不会除以 0
-  if (length > 0.00001) {
-    return [v[0] / length, v[1] / length, v[2] / length];
-  } else {
-    return [0, 0, 0];
-  }
-}
 var m4 = {
   lookAt: function (cameraPosition, target, up) {
-    var zAxis = normalize(subtractVectors(cameraPosition, target));
-    var xAxis = normalize(cross(up, zAxis));
-    var yAxis = normalize(cross(zAxis, xAxis));
+    var zAxis = m4.normalize(m4.subtractVectors(cameraPosition, target));
+    var xAxis = m4.normalize(m4.cross(up, zAxis));
+    var yAxis = m4.normalize(m4.cross(zAxis, xAxis));
 
     return [
       xAxis[0],
@@ -342,6 +341,25 @@ var m4 = {
     }
     return dst;
   },
+  cross: function cross(a, b) {
+    return [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0],
+    ];
+  },
+  subtractVectors: function subtractVectors(a, b) {
+    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  },
+  normalize: function normalize(v) {
+    var length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    // 确定不会除以 0
+    if (length > 0.00001) {
+      return [v[0] / length, v[1] / length, v[2] / length];
+    } else {
+      return [0, 0, 0];
+    }
+  },
 };
 
 function main() {
@@ -361,7 +379,12 @@ function main() {
 
   // look up where the vertex data needs to go.
   var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+  var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
+  var colorLocation = gl.getUniformLocation(program, "u_color");
+  var u_reverseLightDirectionLocation = gl.getUniformLocation(
+    program,
+    "u_reverseLightDirection"
+  );
 
   // look up uniform locations
   var matrixLocation = gl.getUniformLocation(program, "u_matrix");
@@ -398,21 +421,42 @@ function main() {
   );
 
   // 创建颜色缓冲区，将其与当前的 ARRAY_BUFFER 绑定
-  var colorBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-  setColors(gl);
+  // var colorBuffer = gl.createBuffer();
+  // gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  // setColors(gl);
 
   // 启用颜色属性
-  gl.enableVertexAttribArray(colorAttributeLocation);
+  // gl.enableVertexAttribArray(colorAttributeLocation);
 
   // 告诉颜色属性怎么从 colorBuffer (ARRAY_BUFFER) 中读取颜色值
-  var size = 3; // 每次迭代使用3个单位的数据
-  var type = gl.UNSIGNED_BYTE; // 单位数据类型是无符号 8 位整数
-  var normalize = true; // 标准化数据 (从 0-255 转换到 0.0-1.0)
-  var stride = 0; // 0 = 移动距离 * 单位距离长度sizeof(type)  每次迭代跳多少距离到下一个数据
-  var offset = 0; // 从绑定缓冲的起始处开始
+  // var size = 3; // 每次迭代使用3个单位的数据
+  // var type = gl.UNSIGNED_BYTE; // 单位数据类型是无符号 8 位整数
+  // var normalize = true; // 标准化数据 (从 0-255 转换到 0.0-1.0)
+  // var stride = 0; // 0 = 移动距离 * 单位距离长度sizeof(type)  每次迭代跳多少距离到下一个数据
+  // var offset = 0; // 从绑定缓冲的起始处开始
+  // gl.vertexAttribPointer(
+  //   colorAttributeLocation,
+  //   size,
+  //   type,
+  //   normalize,
+  //   stride,
+  //   offset
+  // );
+  var normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+  setNormals(gl);
+
+  // Turn on the attribute
+  gl.enableVertexAttribArray(normalAttributeLocation);
+
+  // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
+  var size = 3; // 3 components per iteration
+  var type = gl.FLOAT; // the data is 32bit floats
+  var normalize = false; // don't normalize the data
+  var stride = 0; // 0 = move forward size * sizeof(type) each iteration to get the next color
+  var offset = 0; // start at the beginning of the buffer
   gl.vertexAttribPointer(
-    colorAttributeLocation,
+    normalAttributeLocation,
     size,
     type,
     normalize,
@@ -511,6 +555,15 @@ function main() {
 
       // Set matrix
       gl.uniformMatrix4fv(matrixLocation, false, matrix);
+
+      // 设置使用的颜色
+      gl.uniform4fv(colorLocation, [0.2, 1, 0.2, 1]); // green
+
+      // 设置光线方向
+      gl.uniform3fv(
+        u_reverseLightDirectionLocation,
+        m4.normalize([0.5, 0.7, 1])
+      );
 
       // draw
       var primitiveType = gl.TRIANGLES;
@@ -661,5 +714,58 @@ function setColors(gl) {
     ]),
     gl.STATIC_DRAW
   );
+}
+// 设定法向量
+function setNormals(gl) {
+  var normals = new Float32Array([
+    // 正面左竖
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+
+    // 正面上横
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+
+    // 正面中横
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+
+    // 背面左竖
+    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+
+    // 背面上横
+    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+
+    // 背面中横
+    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+
+    // 顶部
+    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+
+    // 上横右面
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+
+    // 上横下面
+    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+
+    // 上横和中横之间
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+
+    // 中横上面
+    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+
+    // 中横右面
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+
+    // 中横底面
+    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+
+    // 底部右侧
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+
+    // 底面
+    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+
+    // 左面
+    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+  ]);
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 }
 main();
