@@ -6,7 +6,8 @@ in vec4 a_position;
 // in vec4 a_color;
 in vec3 a_normal;
 
-uniform mat4 u_matrix;
+uniform mat4 u_worldViewProjection;
+uniform mat4 u_world;
 
 // 传递给片段着色器的颜色变量
 // out vec4 v_color;
@@ -15,9 +16,10 @@ out vec3 v_normal;
 
 // all shaders have a main function
 void main() {
-  gl_Position = u_matrix * a_position;
+  gl_Position = u_worldViewProjection * a_position;
 
-  v_normal = a_normal;
+  // 重定向法向量并传递给片段着色器
+  v_normal = mat3(u_world) * a_normal;
 }
 `;
 
@@ -381,13 +383,17 @@ function main() {
   var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
   var colorLocation = gl.getUniformLocation(program, "u_color");
-  var u_reverseLightDirectionLocation = gl.getUniformLocation(
+  var reverseLightDirectionLocation = gl.getUniformLocation(
     program,
     "u_reverseLightDirection"
   );
 
   // look up uniform locations
-  var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+  var worldViewProjectionLocation = gl.getUniformLocation(
+    program,
+    "u_worldViewProjection"
+  );
+  var worldLocation = gl.getUniformLocation(program, "u_world");
 
   // Create a vertex array object (attribute state)
   var vao = gl.createVertexArray();
@@ -465,20 +471,20 @@ function main() {
   );
 
   var fieldOfViewRadians = degToRad(60);
-  var cameraAngleRadians = degToRad(0);
+  var fRotationRadians = degToRad(0);
 
   drawScene();
 
   // Setup a ui.
-  webglLessonsUI.setupSlider("#cameraAngle", {
-    value: radToDeg(cameraAngleRadians),
-    slide: updateCameraAngle,
+  webglLessonsUI.setupSlider("#fRotation", {
+    value: radToDeg(fRotationRadians),
+    slide: updatefRotationRadians,
     min: -360,
     max: 360,
   });
 
-  function updateCameraAngle(event, ui) {
-    cameraAngleRadians = degToRad(ui.value);
+  function updatefRotationRadians(event, ui) {
+    fRotationRadians = degToRad(ui.value);
     drawScene();
   }
 
@@ -518,30 +524,24 @@ function main() {
       zFar
     );
 
-    // 计算第一个F的位置
-    var fPosition = [radius, 0, 0];
-
-    // 计算相机再圆上的位置矩阵
-    var cameraMatrix = m4.yRotation(cameraAngleRadians);
-    cameraMatrix = m4.translate(cameraMatrix, 0, 50, radius * 1.5);
-
-    // 获得矩阵中相机的位置
-    var cameraPosition = [cameraMatrix[12], cameraMatrix[13], cameraMatrix[14]];
-
+    // Compute the camera's matrix
+    var camera = [100, 150, 200];
+    var target = [0, 35, 0];
     var up = [0, 1, 0];
-
-    // 计算相机的朝向矩阵
-    var cameraMatrix = m4.lookAt(cameraPosition, fPosition, up);
+    var cameraMatrix = m4.lookAt(camera, target, up);
 
     // 通过相机矩阵计算视图矩阵
     var viewMatrix = m4.inverse(cameraMatrix);
 
-    var viewMatrix = m4.inverse(cameraMatrix);
-
-    // Make a view matrix from the camera matrix.
-
     // 将投影空间移动到视图空间 (摄像机前方的空间)
     var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
+
+    // Make a view matrix from the camera matrix.
+    var worldMatrix = m4.yRotation(fRotationRadians);
+    var worldViewProjectionMatrix = m4.multiply(
+      viewProjectionMatrix,
+      worldMatrix
+    );
 
     // 绘制一圈'F'
     for (var ii = 0; ii < numFs; ++ii) {
@@ -551,19 +551,26 @@ function main() {
       var z = Math.sin(angle) * radius;
       // 从视图投影矩阵开始
       // 计算 F 矩阵
-      var matrix = m4.translate(viewProjectionMatrix, x, 0, z);
+      var worldViewProjectionMatrix = m4.translate(
+        worldViewProjectionMatrix,
+        x,
+        0,
+        z
+      );
 
       // Set matrix
-      gl.uniformMatrix4fv(matrixLocation, false, matrix);
+      gl.uniformMatrix4fv(
+        worldViewProjectionLocation,
+        false,
+        worldViewProjectionMatrix
+      );
+      gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
 
       // 设置使用的颜色
       gl.uniform4fv(colorLocation, [0.2, 1, 0.2, 1]); // green
 
       // 设置光线方向
-      gl.uniform3fv(
-        u_reverseLightDirectionLocation,
-        m4.normalize([0.5, 0.7, 1])
-      );
+      gl.uniform3fv(reverseLightDirectionLocation, m4.normalize([0.5, 0.7, 1]));
 
       // draw
       var primitiveType = gl.TRIANGLES;
