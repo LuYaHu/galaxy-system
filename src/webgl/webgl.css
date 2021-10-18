@@ -9,12 +9,12 @@ html {
 }
 
 body {
-  background-color: #aaa;
+  background-color: #cbe3e7;
   font-family: Sans-Serif;
 }
 
 canvas {
-  background-color: #fff;
+  background-color: #100e23;
   border: 1px solid black;
   /* NOTE: This size is changed if in iframe - see below '.iframe canvas' */
   width: 1000px;
