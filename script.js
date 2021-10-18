@@ -289,7 +289,6 @@
 
           var log = gl.getShaderInfoLog(shader);
           if (log) console.error(log);
-          if (log) console.log(shaderSource);
           return shader;
         }
       );
