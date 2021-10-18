@@ -1,154 +1,112 @@
-html {
-  box-sizing: border-box;
-}
-*,
-*:before,
-*:after {
-  box-sizing: inherit;
-  user-select: none;
-}
-
 body {
-  background-color: #cbe3e7;
-  font-family: Sans-Serif;
-}
-
-canvas {
+  color: #9cc4ff;
   background-color: #100e23;
-  border: 1px solid black;
-  /* NOTE: This size is changed if in iframe - see below '.iframe canvas' */
-  width: 1000px;
-  height: 800px;
-  display: block;
-}
-
-#uiContainer {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
   font-family: monospace;
-  pointer-events: none;
-
-  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff,
-    1px 1px 0 #fff;
-}
-#ui {
-  opacity: 0.8;
-}
-#ui > div {
-  pointer-events: none;
-}
-#ui input,
-#ui select,
-#ui option,
-#ui canvas {
-  pointer-events: auto;
+  white-space: pre;
+  overflow: hidden;
+  font-size: 14px;
 }
 
-.gman-slider-label,
-.gman-widget-label,
-.gman-checkbox-label {
-  font-size: small;
-  min-width: 10em;
-  text-align: right;
+a,
+a:hover,
+a:visited,
+a:active {
+  color: inherit;
 }
-.gman-checkbox-label {
-  pointer-events: auto;
-}
-.gman-widget-value {
-  float: right;
-  font-size: small;
-  order: 1;
-  min-width: 3em;
-}
-
-.gman-slider-upper {
-  height: 1.5em;
-}
-.gman-slider-outer,
-.gman-widget-outer {
-  float: right;
-  display: flex;
-  align-items: center;
-  height: 1.7em;
-}
-.gman-widget-slider,
-.gman-widget-checkbox,
-.gman-widget-select {
-  opacity: 0.5;
-  font-size: large;
-  margin-left: 0.3em;
-  margin-right: 0.3em;
-}
-.gman-widget-select {
-  font-size: small;
-}
-.gman-widget-slider {
-  min-width: 120px;
-}
-
-/* styles to apply if in an iframe */
-
-html.iframe {
-  height: 100vh;
-}
-body.iframe {
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-}
-
-.iframe > .description {
-  display: none;
-}
-.iframe .divcanvas {
-  width: 100vw;
-  height: 100vh;
-}
-.iframe canvas {
-  width: 100vw;
-  height: 100vh;
-  max-width: 100vw;
-  border: none;
-}
-
-.iframe > #example {
+#canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
-#ui #rotation > canvas {
-  background-color: rgba(255, 255, 255, 0.6);
-}
-#ui {
+
+#statistics {
+  position: absolute;
+  left: 20;
+  top: 20;
   width: 200px;
+  height: 30px;
+  margin: 20px 20px;
+  padding: 0;
+  text-align: right;
 }
 
-@media (max-width: 390px) {
-  pre {
-    font-size: xx-small !important;
-    max-width: 300px !important;
-  }
-  canvas {
-    width: 100vw;
-  }
-  .iframe canvas {
-    width: 100vw;
-    height: 100vh;
-    border: none;
-  }
-  #uiContainer {
-    top: 120px;
-  }
-  .iframe #uiContainer {
-    top: 10px;
-  }
+#controls {
+  position: absolute;
+  right: 42px;
+  bottom: 42px;
+  width: 300px;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+#controls input,
+#controls label,
+#controls select {
+  width: 90%;
+  display: block;
+  margin: 0 auto;
+}
+#controls > button {
+  width: 50%;
+  border: none;
+  padding: 0;
+  margin: 0 auto;
+}
+.control {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #a6b3cc;
+  background-color: #100e23;
+  padding: 10px 0;
+}
+#controls .control > * + * {
+  margin-top: 10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  #ui .ui-dark-support {
-    color: white;
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000,
-      1px 1px 0 #000;
-  }
+#controls .control + .control {
+  margin-top: 10px;
+}
+
+#info {
+  position: absolute;
+  right: 42px;
+  top: 42px;
+  width: 300px;
+  height: auto;
+}
+
+.planet {
+  border: 1px solid #a6b3cc;
+  padding: 5px 10px;
+}
+.planet > .name {
+  font-weight: bold;
+  font-size: 18px;
+  color: #ff8b92;
+}
+dl {
+  margin-left: 20px;
+  margin-top: 2px;
+  margin-bottom: 5px;
+}
+dt {
+  float: left;
+  clear: left;
+  min-width: 100px;
+  text-align: right;
+  font-weight: bold;
+}
+dt:after {
+  content: ":";
+}
+dd {
+  margin: 0 0 0 100px;
+  padding: 0 0 0 0;
 }

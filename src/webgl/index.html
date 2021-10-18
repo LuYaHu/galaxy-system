@@ -2,31 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=yes"
-    />
-    <title>WebGL Demo</title>
-    <link rel="stylesheet" href="./webgl.css" type="text/css" />
-    <script src="resources/gl-matrix-min.js" defer></script>
-    <script src="resources/webgl-utils.js"></script>
-    <script src="resources/webgl-lessons-ui.js"></script>
-    <script src="webgl-demo.js" defer></script>
-    <script src="resources/twgl-full.min.js"></script>
-    <script src="resources/m4.js"></script>
-    <script src="resources/texture-utils.js"></script>
-    <script src="resources/chroma.min.js"></script>
-    <script src="resources/jquery-1.7.1.min.js"></script>
-    <script src="resources/jquery-ui-1.8.16.custom.min.js"></script>
-    <script src="resources/jquery.mousecapture.js"></script>
-    <script src="resources/jquery-gman-circle.js"></script>
+
+    <title>行星运转系统</title>
+
+    <link rel="stylesheet" href="webgl.css" />
+    <script src="gl-matrix.js"></script>
+    <script src="script.js" id="script"></script>
   </head>
 
   <body>
-    <div class="description">WebGL2 三维相机</div>
-    <canvas id="glcanvas"></canvas>
-    <div id="uiContainer">
-      <div id="ui"></div>
+    <canvas id="canvas" width="1024" height="1024"></canvas>
+    <div id="statistics">FPS: <span id="fps">0</span></div>
+
+    <div id="info"></div>
+    <div id="controls">
+      <div class="control">
+        <label for="speed">速度</label>
+        <input type="range" id="speed" min="-10" value="1" max="10" step="1" />
+      </div>
+      <div class="control">
+        <label for="rotationLock">相机视角</label>
+        <select id="rotationLock">
+          <option value="galaxy">星系</option>
+          <option value="orbit">绕轨道运转</option>
+          <option value="surface">表面</option>
+        </select>
+      </div>
     </div>
   </body>
 </html>
